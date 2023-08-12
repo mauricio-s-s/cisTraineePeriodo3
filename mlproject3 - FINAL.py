@@ -3,9 +3,10 @@ import numpy as np
 from sklearn import datasets
 from sklearn.model_selection import train_test_split
 from sklearn.neighbors import KNeighborsClassifier
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import confusion_matrix, classification_report
 from sklearn.preprocessing import StandardScaler
 
+from imblearn.over_sampling import SMOTE
 import os
 import math
 import tensorflow as tf
@@ -13,10 +14,20 @@ import tensorflow as tf
 
 
 #funções a serem utilizadas
-def accuracy(confusion_matrix):
-   diagonal_sum = confusion_matrix.trace()
-   sum_of_all_elements = confusion_matrix.sum()
-   return diagonal_sum / sum_of_all_elements
+def accuracy(cm):
+   diagonal_sum = cm.trace()
+   sum_of_all_elements = cm.sum()
+   
+   gen_acc = diagonal_sum / sum_of_all_elements
+   
+   if cm.shape == (2,2):
+       tp = cm[0,0]
+       fp = cm[0,1]
+       tn = cm[1,1]
+       fn = cm[1,0]
+       
+       print()
+   return gen_acc
 
 ####### Funções de Ativação ###############
 def relU(x):
@@ -39,14 +50,19 @@ def daf(x):
 
 
 os.chdir(r'I:\Meu Drive\engEletrica\IEEE\3periodo')
-
 dbpath = os.getcwd()+'\\creditcard.csv'
 data = pd.read_csv(dbpath)
 
 
 #Preprocessing 
+data.dtypes
 
-#aplicar StandardScaler nas features
+
+#desconsiderar coluna "Time"
+data = data.drop("Time",axis = 'columns')
+
+
+#aplicar StandardScaler nas features de entrada
 #col_names = ['Amount']
 cols = list(data.columns)
 cols.remove('Class')
@@ -55,83 +71,58 @@ scaler = StandardScaler().fit(data[cols])
 data[cols] = pd.DataFrame(scaler.transform(features), columns = cols)
 
 
-#Additionally, since we are going to train the neural network
-#using Gradient Descent, we must scale the input features.
+X = data.drop('Class',axis = 'columns')
+y = data['Class']
+y.value_counts()
+""" 
+0    284315
+1       492
+"""
 
-#desconsiderar coluna "Time"
-cols = list(data.columns)
-cols.remove("Time")
-data = data[cols]
+#corrigir undersampling
+#Método SMOTE
+smote = SMOTE(sampling_strategy='minority')
+Xadj, yadj = smote.fit_resample(X,y)
+yadj.value_counts()
+
+
+""" 
+0    284315
+1    284315
+"""
 
 
 #separar train_set, valid_test e  test_set
-train_data, test_data = train_test_split(data, test_size=0.2, random_state=42)
-train_data, valid_data = train_test_split(train_data, test_size=0.2, random_state=42)
-
-pclass = "Class"
-
-featureNames = list(data.columns)
-featureNames.remove(pclass)
-
-train_set = train_data[featureNames]
-train_labels = train_data[pclass]
-
-valid_set = valid_data[featureNames]
-valid_labels = valid_data[pclass]
-
-test_set = test_data[featureNames]
-test_labels = test_data[pclass]
+X_train, X_test, y_train, y_test = train_test_split(Xadj, yadj, test_size=0.2, random_state=42, stratify=yadj)
+X_train, X_valid, y_train, y_valid = train_test_split(X_train, y_train, test_size=0.2, random_state=42, stratify=y_train)
 
 
 
-nFeatures = train_set.shape[1]
+nFeatures = X_train.shape[1]
 hidden_layer_size = (100)
 
-mBatchSize = 300
-epochs = 3
-learnRate = 0.05
+mBatchSize = 40
+epochs = 10
+learnRate = 0.5
 
 
+coef0 = np.random.randn(hidden_layer_size,nFeatures)
+coef1 = np.random.randn(1,hidden_layer_size)#
 
-coef0 = np.random.randn(hidden_layer_size,nFeatures)# * 100
-coef1 = np.random.randn(1,hidden_layer_size)# * 100
-
-biasw0 = np.random.randn(hidden_layer_size,1)# * 100
-biasw1 = np.random.randn(1,1)# * 100
+biasw0 = np.random.randn(hidden_layer_size,1)
+biasw1 = np.random.randn(1,1)
 
 for i in range(epochs):
     #count = 0
     #instans = list(range(20))
-    nInstances = train_set.shape[0]
+    nInstances = X_train.shape[0]
     instPerEpoch = list(range(0,nInstances,mBatchSize))
     instPerEpoch.append(nInstances)
     
-    """
-    #overall loss no validation set:
-    print('epoch:', i)
-    z0 = np.dot(coef0,valid_set.to_numpy().T)+biasw0
-    a0 = af(z0)
-    z1 = np.dot(coef1,a0)+biasw1
-    a1 = af(z1)
-    loss = np.mean((a1-valid_labels.to_numpy().T.reshape(a1.shape))**2)
-    print('overall loss: ', loss)
-    """
+
     for k in range(len(instPerEpoch)-1):
-        
-        #overall loss no validation set
-        if k%1000 == 0:
-            print('epoch/mBatch: ', i,'-',k)
-            z0 = np.dot(coef0,valid_set.to_numpy().T)+biasw0
-            a0 = af(z0)
-            z1 = np.dot(coef1,a0)+biasw1
-            a1 = af(z1)
-            loss = np.mean((a1-valid_labels.to_numpy().T.reshape(a1.shape))**2)
-            print('overall loss: ', loss)
-        
-        #print(f'epoch({i}) mBatch({k}):')
-        #print(train_set[instPerEpoch[i]:instPerEpoch[i+1]])
-        x = train_set[instPerEpoch[i]:instPerEpoch[i+1]] #miniBatch
-        y = train_labels[instPerEpoch[i]:instPerEpoch[i+1]]
+        x = X_train[instPerEpoch[i]:instPerEpoch[i+1]] #miniBatch
+        y = y_train[instPerEpoch[i]:instPerEpoch[i+1]]
         
         x = x.to_numpy().T
         y = y.to_numpy().reshape(-1,1).T
@@ -164,20 +155,31 @@ for i in range(epochs):
         biasw0 = biasw0 - learnRate*np.mean(grad_biasw0,axis=1).reshape(biasw0.shape)
         biasw1 = biasw1 - learnRate*np.mean(grad_biasw1,axis=1).reshape(biasw1.shape)
         
-
+    print()
+    print('epoch: ', i)
+    z0 = np.dot(coef0,X_valid.to_numpy().T)+biasw0
+    a0 = af(z0)
+    z1 = np.dot(coef1,a0)+biasw1
+    a1 = af(z1)
+    loss = np.mean((a1-y_valid.to_numpy().T.reshape(a1.shape))**2)
+    print('overall loss: ', loss)
+    
     #Acurácia nos dados de teste
     #selecionar dados:
-    x = train_set.to_numpy()
-    y = train_labels.to_numpy()
+    x = X_test.to_numpy()
+    y = y_test.to_numpy()
     
     z0 = np.dot(coef0,x.T)+biasw0
     a0 = af(z0)
     z1 = np.dot(coef1,a0)+biasw1
     a1 = af(z1)
     test_pred = np.round(a1)
-    test_pred = (test_pred > 1)*2
+    #test_pred = (test_pred > 1)*2
     
     #Comparing the predictions against the actual observations in y_val
     cm = confusion_matrix(test_pred[0], y.reshape(1,-1)[0])
     print(cm)
+    print("Classification Report: \n", classification_report(y.reshape(1,-1)[0], test_pred[0]))
+
+    
 
