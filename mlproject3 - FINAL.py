@@ -4,12 +4,15 @@ from sklearn import datasets
 from sklearn.model_selection import train_test_split
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.metrics import confusion_matrix
+from sklearn.preprocessing import StandardScaler
+
 import os
 import math
 import tensorflow as tf
 
-#funções a serem utilizadas
 
+
+#funções a serem utilizadas
 def accuracy(confusion_matrix):
    diagonal_sum = confusion_matrix.trace()
    sum_of_all_elements = confusion_matrix.sum()
@@ -42,6 +45,10 @@ data = pd.read_csv(dbpath)
 
 
 #Preprocessing
+col_names = ['Amount']
+features = data[col_names]
+scaler = StandardScaler().fit(data[col_names])
+data[col_names] = pd.DataFrame(scaler.transform(features), columns = col_names)
 
 
 #Additionally, since we are going to train the neural network
@@ -78,7 +85,7 @@ hidden_layer_size = (100)
 
 mBatchSize = 300
 epochs = 3
-learnRate = 0.009
+learnRate = 0.05
 
 
 
