@@ -44,11 +44,15 @@ dbpath = os.getcwd()+'\\creditcard.csv'
 data = pd.read_csv(dbpath)
 
 
-#Preprocessing
-col_names = ['Amount']
-features = data[col_names]
-scaler = StandardScaler().fit(data[col_names])
-data[col_names] = pd.DataFrame(scaler.transform(features), columns = col_names)
+#Preprocessing 
+
+#aplicar StandardScaler nas features
+#col_names = ['Amount']
+cols = list(data.columns)
+cols.remove('Class')
+features = data[cols]
+scaler = StandardScaler().fit(data[cols])
+data[cols] = pd.DataFrame(scaler.transform(features), columns = cols)
 
 
 #Additionally, since we are going to train the neural network
