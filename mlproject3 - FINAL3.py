@@ -1,3 +1,15 @@
+"""
+#Considerações:
+O uso de algumas funções de ativação ou de custo por algum motivo geraram valores 'nan' nos coeficientes,
+possivelmente por conta de divisões com denominadores muito pequenos.
+
+Estranhamente, nos testes realizados, o erro já se inicia com valores baixos, não tendo sido possível
+observar a melhora gradual nos índices, com a realização dos treinos.
+
+Os índices de acertos, contudo, mostraram-se satisfatórios, com acurácias em torno de 0.9
+
+
+"""
 import pandas as pd
 import numpy as np
 from sklearn import datasets
